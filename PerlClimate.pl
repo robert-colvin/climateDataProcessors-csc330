@@ -67,64 +67,39 @@ foreach (@dailyfile)
 		{
 			my $thisStation = @fields[0];
 			my $thisTemp = @fields[6];
-	
-			push (@dailyStations, $thisStation);
-			push (@temps, $thisTemp);
+
+			foreach $this (@stations)
+			{
+				if ($this->getStation() eq $thisStation)
+				{
+					my $thisState = $this->getState();
+					foreach $that (@states)
+					{
+						if ($that->getState() eq $thisState)
+						{
+							$that->addTemp($thisTemp);
+ '-------------------------------------------------------------------------------------------';
+						}
+					}
+				}
+			}
 		}
 	}
 	#SET COUNTER TO 1 AFTER HEADER LINE IS PASSED
 	$counter = 1;
 }
-for (my $i = 0; $i<scalar @dailyStations;$i++)
+=p
+for (my $i = 0; $i<scalar @states-1;$i++)
 {
-	my $readings = 1;
-	if ($i>0)
+	for (my $j = $i+1;$j<scalar @states;$j++)
 	{
-
-		if (scalar @dailyStations - $i == 1)
+		if (@states[$i]->getAverage() <= @states[$j]->getAverage())
 		{
-			push (@finalStations, @dailyStations[$i]);
-			push (@finalTemps, @temps[$i]);
-			push (@readings, $readings);
-		}
-
-		if (@dailyStations[$i] eq @dailyStations[$i-1])
-		{
-			@temps[$i]+=@temps[$i-1];
-			$readings++;
-		}
-		elsif (@dailyStations[$i] ne @dailyStations[$i-1])
-		{
-			push (@finalStations, @dailyStations[$i-1]);
-			push (@finalTemps, @temps[$i-1]);
-			push (@readings, $readings);
-			$readings = 1;
-			
-		}
+			my $hold = @states[$i];
+			@states[$i] = @states[$j];
+			@states[$j] = $hold;
+		} 
 	}
-}
-for (my $i - 0; $i<scalar @finalStations; $i++)
-{
-	foreach $sObj (@stations)
-	{
-		if (@finalStations[$i] eq $sObj->getStation())
-		{
-			my $sObjState = $sObj->getState();
-		
-			foreach $stObj (@states)
-			{
-				if ($sObjState eq $stObj->getState())
-				{
-					$stObj->addTemp(@finalTemps[$i], @readings[$i]);
-				}
-			}
-		}
-	}
-}
-
-foreach (@states)
-{
-	print $_->getState(). ' ' . $_->getReadings() . ' ' .($_->getTemp()) . "\n";#/($_->getReadings());
 }
 =o
 			foreach $this (@stations)
@@ -142,14 +117,7 @@ foreach (@states)
 					}
 				}
 			}
-
-
-
-sub makeUnique
-{
-	my %seen;
-	return grep {!$seen{$_}++} @_;	
-}
+=cut
 
 
 
