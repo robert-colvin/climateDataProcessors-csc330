@@ -1,8 +1,6 @@
 #!/usr/bin/perl
 use LWP;
 #use strict;
-use State;
-use Station;
 print "This is libwww-perl-$LWP::VERSION\n";
 use LWP::Simple;
 #use List::MoreUtils qw(first_index);
@@ -10,9 +8,9 @@ use LWP::Simple;
 my $stationfile = get 'http://theochem.mercer.edu/csc330/data/station.txt';
 my @stationfile = split( /\n/, $stationfile);
 
-my @stations;
-my @states;
-my @stateNames;
+my %stations;
+my %states;
+my %readings;
 #CREATE COUNTER TO CONTROL WHEN STUFF IS PUSHED TO NEW ARRAYS
 $counter = 0;
 foreach (@stationfile) 
@@ -23,28 +21,19 @@ foreach (@stationfile)
 		#USE | AS DELIMITER TO SEPARATE INTO "SUBSTRINGS"
 		@fields = split( /\|/, $_);
 		#PUSH DELIMITED DATA INTO ARRAYS  /*[7] is state [0] is id*/
-		my $aStation = new Station(@fields[7], @fields[0]);
-		push ( @stations, $aStation);
-		push (@stateNames, $aStation->getState());
-
-		@stateNames = sort @stateNames;
+		$stations{@fields[0]} = @fields[7];
 	}
 	#SET COUNTER TO 1 AFTER FIRST LINE CONTAINING HEADER IS PASSED
 	$counter = 1;
 }
-for (my $i = 0; $i<scalar @stateNames; $i++)
+
+my @stations = values %stations;
+for (my $i = 0; $i<scalar @stations;$i++)
 {
-	my $thisState = @stateNames[$i];
-	
-	if ($i > 0)
+	if (!exists $states{@stations[$i]})
 	{
-		my $lastState = @stateNames[$i-1];
-		
-		if ($thisState ne $lastState)
-		{
-			my $aState = new State($lastState, 0 , 0.0);
-			push (@states, $aState);
-		}
+		$states{@stations[$i]} = 0.0;
+		$readings{@stations[$i]} = 0.0;
 	}
 }
 
@@ -67,58 +56,54 @@ foreach (@dailyfile)
 		{
 			my $thisStation = @fields[0];
 			my $thisTemp = @fields[6];
-
-			foreach $this (@stations)
+			
+			if (exists $stations{$thisStation})
 			{
-				if ($this->getStation() eq $thisStation)
-				{
-					my $thisState = $this->getState();
-					foreach $that (@states)
-					{
-						if ($that->getState() eq $thisState)
-						{
-							$that->addTemp($thisTemp);
- '-------------------------------------------------------------------------------------------';
-						}
-					}
-				}
+				$states{$stations{$thisStation}} += $thisTemp;
+				$readings{$stations{$thisStation}} += 1;
 			}
 		}
 	}
 	#SET COUNTER TO 1 AFTER HEADER LINE IS PASSED
 	$counter = 1;
 }
-=p
-for (my $i = 0; $i<scalar @states-1;$i++)
+
+foreach (keys %readings)
 {
-	for (my $j = $i+1;$j<scalar @states;$j++)
+	if ($readings{$_} == 0)
 	{
-		if (@states[$i]->getAverage() <= @states[$j]->getAverage())
-		{
-			my $hold = @states[$i];
-			@states[$i] = @states[$j];
-			@states[$j] = $hold;
-		} 
+		delete $readings{$_};
+		delete $states{$_};
 	}
 }
-=o
-			foreach $this (@stations)
-			{
-				if ($this->getStation() eq $thisStation)
-				{
-					my $thisState = $this->getState();
-					
-					foreach $that (@states)
-					{
-						if ($that->getState() eq $thisState)
-						{
-							$that->addTemp($thisTemp);
-						}
-					}
-				}
-			}
-=cut
 
+my @states_f = keys %states;
+my @temps_f = values %states;
+my @readings_f = values %readings;
+
+for (my $i = 0; $i<scalar @readings_f-1; $i++)
+{
+	for (my $j = $i+1; $j<scalar @readings_f; $j++)
+	{
+		if (@temps_f[$i]/@readings_f[$i]>= @temps_f[$j]/@readings_f[$j])
+		{
+			my $hold1 = @readings_f[$j];
+			my $hold2 = @states_f[$j];
+			my $hold3 = @temps_f[$j];
+			@readings_f[$j] = @readings_f[$i];
+			@states_f[$j] = @states_f[$i];
+			@temps_f[$j] = @temps_f[$i];
+			@readings_f[$i] = $hold1;
+			@states_f[$i] = $hold2;
+			@temps_f[$i] = $hold3;
+		}
+	}
+}
+printf("%5s %8s %8s\n", "STATE", "READINGS", "AVG TEMP");
+for (my $i = 0; $i<scalar @readings_f;$i++)
+{
+	printf("%3s %8d %8.1f\n", @states_f[$i], @readings_f[$i], @temps_f[$i]/@readings_f[$i]);
+}
 
 
 
